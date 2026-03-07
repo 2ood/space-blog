@@ -231,3 +231,20 @@
   transition: color var(--transition-fast);
 }
 .mobileMenuClose:hover { color: var(--color-accent); }
+
+/* ── Observer hover title hint ──────────────────────────────────── */
+.hoverTitle {
+  position: fixed;
+  transform: translate(-50%, calc(-100% - 14px));
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  pointer-events: none;
+  text-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+  background: rgba(2, 8, 24, 0.7);
+  padding: 3px 8px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 212, 255, 0.15);
+}

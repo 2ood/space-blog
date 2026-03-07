@@ -1,11 +1,12 @@
 'use client'
 
-import { useRef, useMemo, useState } from 'react'
+import { useRef, useMemo, useState, useEffect, useContext } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { TAG_COLORS } from '@/config/spaceConfig'
 import { useSpaceStore } from '@/store/spaceStore'
+import { StarRegistryContext } from '@/hooks/camera/useBlogStarRegistry'
 
 export interface Post {
   id: string
@@ -135,8 +136,9 @@ const labelStyles: React.CSSProperties = {
 
 // ── BlogStar ──────────────────────────────────────────────────────────────────
 function BlogStar({ post }: { post: Post }) {
-  const groupRef = useRef<THREE.Group>(null)
-  const meshRef  = useRef<THREE.Mesh>(null)
+  const groupRef  = useRef<THREE.Group>(null)
+  const meshRef   = useRef<THREE.Mesh>(null)
+  const hitboxRef = useRef<THREE.Mesh>(null)
   const { camera } = useThree()
   const showStarNames = useSpaceStore((s) => s.showStarNames)
 
@@ -166,28 +168,43 @@ function BlogStar({ post }: { post: Post }) {
     fragmentShader: makePlanetFragmentShader(color),
   }), [color])
 
-  const onMeshInit = (mesh: THREE.Mesh | null) => {
-    if (!mesh) return
+  // Register the hitbox mesh (2.5× radius) so raycasts are generous.
+  // userData on both visual + hitbox so any legacy code still works.
+  const registry = useContext(StarRegistryContext)
+  useEffect(() => {
+    const mesh = hitboxRef.current ?? meshRef.current
+    if (!mesh || !registry) return
     mesh.userData.isBlogStar = true
     mesh.userData.postId = post.id
-  }
+    if (meshRef.current) {
+      meshRef.current.userData.isBlogStar = true
+      meshRef.current.userData.postId = post.id
+    }
+    registry.register(post.id, mesh)
+    return () => registry.unregister(post.id)
+  }, [post.id, registry])
 
   useFrame(() => {
     if (!groupRef.current) return
-    // Slow self-rotation
     groupRef.current.rotation.y += 0.002
   })
 
   return (
     <group position={post.position}>
       <group ref={groupRef}>
-        <mesh ref={(m) => { meshRef.current = m!; onMeshInit(m) }} material={shaderMat}>
+        <mesh ref={meshRef} material={shaderMat}>
           <sphereGeometry args={[radius, 48, 48]} />
         </mesh>
 
         {showRing && <PlanetRing radius={radius} color={color} />}
         {showMoon && <Moon parentRadius={radius} color={color} />}
       </group>
+
+      {/* Invisible hit-area — 2.5× the visual radius for generous tap/click targets */}
+      <mesh ref={hitboxRef} visible={false}>
+        <sphereGeometry args={[radius * 2.5, 8, 8]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
 
       {/* Soft glow halo — raycastable:false so it never intercepts clicks */}
       <mesh raycast={() => null}>

@@ -11,6 +11,15 @@ interface SpaceStore {
 
   activePost: Post | null
   setActivePost: (post: Post | null) => void
+  /** Star currently under cursor in observer mode — drives title hint, not PostCard */
+  hoveredPost: Post | null
+  setHoveredPost: (post: Post | null) => void
+  /** Screen position of the hovered star for cursor-following title hint */
+  hoverPos: { x: number; y: number } | null
+  setHoverPos: (pos: { x: number; y: number } | null) => void
+  /** Slug of the post whose full content should be shown in the overlay. Null = no overlay. */
+  openPostSlug: string | null
+  setOpenPostSlug: (slug: string | null) => void
 
   isFreeroam: boolean
   setIsFreeroam: (v: boolean) => void
@@ -28,6 +37,12 @@ interface SpaceStore {
   trajectoryProgress: number
   setTrajectoryProgress: (p: number) => void
 
+  /** Pending trajectory exit — set when user clicks a star during trajectory+freeroam breakout */
+  trajectoryExitConfirm: { starPos: [number, number, number]; postId: string | null } | null
+  setTrajectoryExitConfirm: (v: { starPos: [number, number, number]; postId: string | null } | null) => void
+  /** One-shot fly-to request set by outside-Canvas components; consumed and cleared by useFlyTo tick */
+  pendingFlyTo: { starPos: [number, number, number]; postId: string | null } | null
+  setPendingFlyTo: (v: { starPos: [number, number, number]; postId: string | null } | null) => void
   /** When true, user entered free roam from a trajectory stop; restore camera on pointer unlock */
   trajectoryBreakout: boolean
   setTrajectoryBreakout: (v: boolean) => void
@@ -38,18 +53,21 @@ interface SpaceStore {
   showStarNames: boolean
   setShowStarNames: (v: boolean) => void
 
-  /** Mobile touch: camera look delta per frame */
-  mobileLook: { dx: number; dy: number }
-  setMobileLook: (v: { dx: number; dy: number }) => void
-  /** Mobile touch: move delta per frame */
-  mobileMove: { forward: number; right: number, up:number }
-  setMobileMove: (v: { forward: number; right: number, up:number }) => void
-  /** Mobile pinch: move toward a specific world-space direction */
-  mobilePinch: { dx: number; dy: number; dz: number } | null
-  setMobilePinch: (v: { dx: number; dy: number; dz: number } | null) => void
+  /** Mobile touch: world-space pan delta per frame (x = left/right, y = up/down) */
+  mobileMove: { x: number; y: number }
+  setMobileMove: (v: { x: number; y: number }) => void
+  /** Mobile pinch: finger spread/close delta in screen pixels */
+  mobilePinch: { distDelta: number } | null
+  setMobilePinch: (v: { distDelta: number } | null) => void
+  /** Mobile roll: two-finger clockwise rotation delta in radians */
+  mobileRoll: { delta: number } | null
+  setMobileRoll: (v: { delta: number } | null) => void
 
   mobileOrbit: { yaw: number; pitch: number }
   setMobileOrbit: (o: { yaw: number; pitch: number }) => void
+  /** Mobile tap: screen + NDC coords of a detected tap. Null between taps. */
+  mobileTap: { x: number; y: number; ndcX: number; ndcY: number } | null
+  setMobileTap: (v: { x: number; y: number; ndcX: number; ndcY: number } | null) => void
 }
 
 export const useSpaceStore = create<SpaceStore>((set) => ({
@@ -57,6 +75,12 @@ export const useSpaceStore = create<SpaceStore>((set) => ({
   setPosts: (posts) => set({ posts }),
   activePost: null,
   setActivePost: (post) => set({ activePost: post }),
+  hoveredPost: null,
+  setHoveredPost: (post) => set({ hoveredPost: post }),
+  hoverPos: null,
+  setHoverPos: (pos) => set({ hoverPos: pos }),
+  openPostSlug: null,
+  setOpenPostSlug: (slug) => set({ openPostSlug: slug }),
   isFreeroam: false,
   setIsFreeroam: (v) => set({ isFreeroam: v }),
   navMode: 'free',
@@ -70,6 +94,10 @@ export const useSpaceStore = create<SpaceStore>((set) => ({
   setTrajectoryIndex: (i) => set({ trajectoryIndex: i }),
   trajectoryProgress: 0,
   setTrajectoryProgress: (p) => set({ trajectoryProgress: p }),
+  trajectoryExitConfirm: null,
+  setTrajectoryExitConfirm: (v) => set({ trajectoryExitConfirm: v }),
+  pendingFlyTo: null,
+  setPendingFlyTo: (v) => set({ pendingFlyTo: v }),
   trajectoryBreakout: false,
   setTrajectoryBreakout: (v) => set({ trajectoryBreakout: v }),
   trajectoryAnchor: null,
@@ -78,12 +106,14 @@ export const useSpaceStore = create<SpaceStore>((set) => ({
   showStarNames: false,
   setShowStarNames: (v) => set({ showStarNames: v }),
 
-  mobileLook: { dx: 0, dy: 0 },
-  setMobileLook: (v) => set({ mobileLook: v }),
-  mobileMove: { forward: 0, right: 0, up: 0},
+  mobileMove: { x: 0, y: 0 },
   setMobileMove: (v) => set({ mobileMove: v }),
   mobilePinch: null,
   setMobilePinch: (v) => set({ mobilePinch: v }),
+  mobileRoll: null,
+  setMobileRoll: (v) => set({ mobileRoll: v }),
   mobileOrbit: { yaw: 0, pitch: 0 },
   setMobileOrbit: (o) => set({ mobileOrbit: o }),
+  mobileTap: null,
+  setMobileTap: (v) => set({ mobileTap: v }),
 }))

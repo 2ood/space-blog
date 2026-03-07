@@ -17,7 +17,8 @@ const useIsMounted = () =>
 export default function PostCard() {
   const mounted = useIsMounted()
   const post = useSpaceStore((s) => s.activePost)
-  const setActivePost = useSpaceStore((s) => s.setActivePost)
+  const setActivePost  = useSpaceStore((s) => s.setActivePost)
+  const setOpenPostSlug = useSpaceStore((s) => s.setOpenPostSlug)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -65,10 +66,13 @@ export default function PostCard() {
           <p className={styles.excerpt}>{post.excerpt}</p>
 
           <div className={styles.footer}>
-            <span className={styles.proximity}>● SIGNAL ACQUIRED</span>
-            <a href={`/post/${post.slug}`} className={styles.readButton}>
-              READ TRANSMISSION →
-            </a>
+            <span className={styles.proximity}>● PUBLISHED</span>
+            <button
+              className={styles.readButton}
+              onClick={() => setOpenPostSlug(post.slug)}
+            >
+              READ →
+            </button>
           </div>
         </motion.div>
       )}

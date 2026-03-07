@@ -4,40 +4,20 @@ import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSpaceStore  } from '@/store/spaceStore'
 import { TRAJECTORY_SEQUENCES } from '@/config/spaceConfig'
+import { useTrajectory } from '@/hooks/useTrajectory'
 import styles from './ControlPanel.module.css'
 import { useMobile } from '@/hooks/useMobile'
 
 export default function ControlPanel() {
   const [visible, setVisible] = useState(true)
-
-  const navMode       = useSpaceStore((s) => s.navMode)
-  const setNavMode    = useSpaceStore((s) => s.setNavMode)
-  const status        = useSpaceStore((s) => s.trajectoryStatus)
-  const setStatus     = useSpaceStore((s) => s.setTrajectoryStatus)
-  const index         = useSpaceStore((s) => s.trajectoryIndex)
-  const setIndex      = useSpaceStore((s) => s.setTrajectoryIndex)
-  const setProgress   = useSpaceStore((s) => s.setTrajectoryProgress)
-  const posts         = useSpaceStore((s) => s.posts)
-  const setActivePost = useSpaceStore((s) => s.setActivePost)
-  const setIsFreeroam = useSpaceStore((s) => s.setIsFreeroam)
-  const trajectorySequence  = useSpaceStore((s) => s.trajectorySequence)
-  const setTrajectorySequence = useSpaceStore((s)=> s.setTrajectorySequence)
-
   const isMobile = useMobile()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const dragStartY = useRef<number | null>(null)
 
-  const ordered  = [...(posts ?? [])].sort((a, b) => a.trajectoryOrder - b.trajectoryOrder)
-  const isActive = status === 'travelling' || status === 'waiting'
-
-  const handleSequenceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = e.target.value as typeof trajectorySequence
-    setTrajectorySequence(id)
-    setIndex(0)
-    setProgress(0)
-    setStatus('idle')
-    setActivePost(null)
-  }
+  const {
+    navMode, status, index, ordered, isActive, trajectorySequence,
+    play, restart, prev, next, changeSequence, switchMode,
+  } = useTrajectory()
 
 
   useEffect(() => {
@@ -50,20 +30,6 @@ export default function ControlPanel() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
-
-  const switchMode = (mode: 'free' | 'trajectory') => {
-    setNavMode(mode)
-    if (mode === 'free') { setStatus('idle'); setActivePost(null) }
-    if (mode === 'trajectory') {
-      if (document.pointerLockElement) document.exitPointerLock()
-      setIsFreeroam(false)
-    }
-  }
-
-  const handlePlay    = () => { setIndex(0); setProgress(0); setStatus('travelling'); setActivePost(null) }
-  const handlePrev    = () => { setIndex(Math.max(0, index-1)); setProgress(0); setStatus('travelling'); setActivePost(null) }
-  const handleNext    = () => { setIndex(Math.min(ordered.length-1, index+1)); setProgress(0); setStatus('travelling'); setActivePost(null) }
-  const handleRestart = () => { setIndex(0); setProgress(0); setStatus('travelling'); setActivePost(null) }
 
   const panelContent = (
     <>
@@ -107,7 +73,7 @@ export default function ControlPanel() {
                 id="trajectory-sequence"
                 className={styles.select}
                 value={trajectorySequence}
-                onChange={handleSequenceChange}
+                onChange={(e) => changeSequence(e.target.value as typeof trajectorySequence)}
               >
                 {TRAJECTORY_SEQUENCES.map((seq) => (
                   <option key={seq.id} value={seq.id}>{seq.label}</option>
@@ -129,11 +95,11 @@ export default function ControlPanel() {
               </div>
             )}
             <div className={styles.trajectoryControls}>
-              <button className={styles.trajBtn} onClick={handlePrev} disabled={index === 0 || !isActive}>⏮</button>
-              <button className={styles.trajBtn} onClick={status === 'idle' ? handlePlay : handleRestart}>
+              <button className={styles.trajBtn} onClick={prev} disabled={index === 0 || !isActive}>⏮</button>
+              <button className={styles.trajBtn} onClick={status === 'idle' ? play : restart}>
                 {status === 'idle' ? `▶` : `↺`}
               </button>
-              <button className={styles.trajBtn} onClick={handleNext} disabled={index >= ordered.length - 1}>⏭</button>
+              <button className={styles.trajBtn} onClick={next} disabled={index >= ordered.length - 1}>⏭</button>
             </div>
             <p className={styles.statusLabel}>
               {status === 'travelling' && `▶ TRAVELLING`}
@@ -179,7 +145,7 @@ export default function ControlPanel() {
             onClick={() => setDrawerOpen(v => !v)}
           >
             <div className={styles.drawerPill} />
-            <span className={styles.drawerTitle}>✦ COSMOS</span>
+        <span className={styles.drawerTitle}>✦ COSMOS</span>
             <span className={styles.drawerChevron}>{drawerOpen ? '▼' : '▲'}</span>
           </div>
           <div className={styles.drawerContent}>
@@ -196,11 +162,7 @@ export default function ControlPanel() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
               transition={{ duration: 0.4 }}
-              onClick={() => {
-                const next = index + 1
-                if (next >= ordered.length) { setStatus('idle'); setActivePost(null) }
-                else { setIndex(next); setProgress(0); setStatus('travelling'); setActivePost(null) }
-              }}
+              onClick={() => next()}
             >
               <kbd className={styles.spacebarKey}>TAP</kbd>
               <span className={styles.spacebarLabel}>

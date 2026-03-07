@@ -5,8 +5,9 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useSpaceStore } from '@/store/spaceStore'
 import { getPostColor, TRAJECTORY_SEQUENCES } from '@/config/spaceConfig'
+import { computeStopPosition } from '@/utils/cameraUtils'
 
-const STOP_DISTANCE = 22
+const STOP_DISTANCE = 22 // kept as the trajectory-specific stop distance
 const FLY_LERP = 0.03
 const TURN_SPEED = 0.08
 
@@ -55,15 +56,10 @@ export default function TrajectoryController() {
   const orderedRef = useRef(ordered)
   useEffect(() => { orderedRef.current = ordered }, [ordered])
 
-  const computeDest = (camPos: THREE.Vector3, starPos: THREE.Vector3) => {
-    const dir = starPos.clone().sub(camPos).normalize()
-    return starPos.clone().addScaledVector(dir, -STOP_DISTANCE)
-  }
-
   const startFlyTo = (starPos: THREE.Vector3) => {
 
     flyStarPos.current = starPos.clone()
-    flyDest.current = computeDest(camera.position, starPos)
+    flyDest.current = computeStopPosition(camera.position, starPos, STOP_DISTANCE)
 
     turning.current = true
   }

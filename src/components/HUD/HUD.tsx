@@ -7,8 +7,10 @@ import { useMobile } from '@/hooks/useMobile'
 import styles from './HUD.module.css'
 
 export default function HUD() {
-  const isFreeroam = useSpaceStore((s) => s.isFreeroam)
-  const isMobile   = useMobile()
+  const isFreeroam  = useSpaceStore((s) => s.isFreeroam)
+  const hoveredPost = useSpaceStore((s) => s.hoveredPost)
+  const hoverPos    = useSpaceStore((s) => s.hoverPos)
+  const isMobile    = useMobile()
   const [menuOpen, setMenuOpen] = useState(false)
 
   // ── Mobile: hamburger + dropdown hint menu ────────────────────────
@@ -61,7 +63,7 @@ export default function HUD() {
               </div>
               <div className={styles.mobileMenuRow}>
                 <span className={styles.key}>TAP STAR</span>
-                <span className={styles.controlLabel}>fly to</span>
+                <span className={styles.controlLabel}>focus</span>
               </div>
               <button
                 className={styles.mobileMenuClose}
@@ -82,7 +84,8 @@ export default function HUD() {
       <div className={styles.bottomLeft}>
         {!isFreeroam ? (
           <p className={styles.hint}>
-            <span className={styles.key}>RIGHT-CLICK</span> to enter free roam
+            <span><span className={styles.key}>RIGHT-CLICK</span> free roam</span>
+            <span><span className={styles.key}>CLICK STAR</span> focus</span>
           </p>
         ) : (
           <div className={styles.controls}>
@@ -129,6 +132,22 @@ export default function HUD() {
           {!isFreeroam && <div className={styles.crosshairDot} />}
         </div>
       </div>
+
+      {/* Observer hover: title floats above the planet in screen space */}
+      <AnimatePresence>
+        {!isFreeroam && hoveredPost && hoverPos && (
+          <motion.div
+            className={styles.hoverTitle}
+            style={{ left: hoverPos.x, top: hoverPos.y }}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            transition={{ duration: 0.15 }}
+          >
+            {hoveredPost.title}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
