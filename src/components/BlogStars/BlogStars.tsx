@@ -97,7 +97,9 @@ function Moon({ parentRadius, color }: { parentRadius: number; color: string }) 
   const groupRef = useRef<THREE.Group>(null)
   const moonRadius = parentRadius * 0.28
   const orbitRadius = parentRadius * 3.2
-  const speed = 0.4 + Math.random() * 0.3
+  // useRef so the random value is stable across re-renders
+  const speedRef = useRef(0.4 + (parentRadius * 137.508) % 0.3) // deterministic from radius
+  const speed = speedRef.current
 
   useFrame(() => {
     if (!groupRef.current) return

@@ -201,7 +201,7 @@ export default function CameraController() {
       document.removeEventListener('pointerlockchange', onPointerLockChange)
       document.removeEventListener('mousemove', onMouseMove)
     }
-
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gl])
 
   useFrame((_, delta) => {

@@ -1,19 +1,23 @@
 'use client'
 
 import { createPortal } from 'react-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSpaceStore } from '@/store/spaceStore'
 import styles from './PostCard.module.css'
 
+// SSR-safe mount check — avoids the setState-in-effect pattern
+const useIsMounted = () =>
+  useSyncExternalStore(
+    (cb) => { cb(); return () => {} },
+    () => true,
+    () => false
+  )
+
 export default function PostCard() {
-  const [mounted, setMounted] = useState(false)
+  const mounted = useIsMounted()
   const post = useSpaceStore((s) => s.activePost)
   const setActivePost = useSpaceStore((s) => s.setActivePost)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

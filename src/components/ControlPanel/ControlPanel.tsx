@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSpaceStore  } from '@/store/spaceStore'
-import { getPostColor, TRAJECTORY_SEQUENCES, type TrajectorySequenceId} from '@/config/spaceConfig'
+import { TRAJECTORY_SEQUENCES } from '@/config/spaceConfig'
 import styles from './ControlPanel.module.css'
 
 export default function ControlPanel() {

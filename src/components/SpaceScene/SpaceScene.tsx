@@ -21,7 +21,7 @@ export default function SpaceScene() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/posts')
+    fetch('/api/stars')
       .then((res) => {
         if (!res.ok) throw new Error(`/api/posts returned ${res.status}`)
         return res.json()
@@ -35,7 +35,7 @@ export default function SpaceScene() {
         console.error('Failed to load posts:', err)
         setError(err.message)
       })
-  }, [])
+  }, [setPosts])
 
   return (
     <div className={styles.container}>

@@ -12,9 +12,13 @@ export async function GET() {
     depth: 0, // just return IDs, not full post objects
   })
 
+  type MaybeRef = { id?: string } | string | null | undefined
+  const resolveId = (val: MaybeRef) =>
+    typeof val === 'object' && val !== null ? String(val.id ?? '') : String(val ?? '')
+
   const connections = result.docs.map((doc) => ({
-    from: String((doc.from as any)?.id ?? doc.from),
-    to:   String((doc.to   as any)?.id ?? doc.to),
+    from: resolveId(doc.from as MaybeRef),
+    to:   resolveId(doc.to   as MaybeRef),
   }))
 
   return Response.json(connections)

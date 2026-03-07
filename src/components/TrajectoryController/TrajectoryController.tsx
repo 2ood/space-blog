@@ -68,14 +68,6 @@ export default function TrajectoryController() {
     turning.current = true
   }
 
-    const handleSequenceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = e.target.value as typeof trajectorySequence
-    setTrajectorySequence(id)
-    setIndex(0)
-    setProgress(0)
-    setStatus('idle')
-    setActivePost(null)
-  }
 
   // Set true in spacebar handler to suppress the panel-button watcher below
   const flyInitiatedBySpacebar = useRef(false)
@@ -131,6 +123,7 @@ export default function TrajectoryController() {
     window.addEventListener('keydown',onKey)
     return()=>window.removeEventListener('keydown',onKey)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   },[])
 
   // Panel buttons (prev/next/play/restart) set index+status in the store.
@@ -149,6 +142,7 @@ export default function TrajectoryController() {
     }
 
     flyInitiatedBySpacebar.current = false
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, status])
 
   useFrame(()=>{
