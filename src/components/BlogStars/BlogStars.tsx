@@ -1,0 +1,213 @@
+'use client'
+
+import { useRef, useMemo, useState } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
+import { Html } from '@react-three/drei'
+import * as THREE from 'three'
+import { TAG_COLORS } from '@/config/spaceConfig'
+import { useSpaceStore } from '@/store/spaceStore'
+
+export interface Post {
+  id: string
+  title: string
+  slug: string
+  date: string
+  tags: string[]
+  excerpt: string
+  position: [number, number, number]
+  trajectoryOrder: number
+  size: 1 | 2 | 3 | 4 | 5
+}
+
+const SIZE_RADII: Record<number, number> = { 1:0.7, 2:1.0, 3:1.4, 4:1.9, 5:2.6 }
+
+// Whether this planet gets a ring
+const hasRing  = (order: number) => order % 7 === 0
+// Whether this planet gets a moon
+const hasMoon  = (order: number) => order % 5 === 0
+
+// ── Shader: single smooth style, brighter tag color ────────────────────────────
+
+const vertexShader = `
+  varying vec3 vNormal;
+  void main() {
+    vNormal = normalize(normalMatrix * normal);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`
+
+function makePlanetFragmentShader(color: string): string {
+  const c = new THREE.Color(color)
+  // Brighten: mix base color with white so planets read clearly
+  const bright = c.clone().lerp(new THREE.Color(0xffffff), 0.35)
+  const r = bright.r.toFixed(3), g = bright.g.toFixed(3), b = bright.b.toFixed(3)
+  return `
+    varying vec3 vNormal;
+    void main() {
+      vec3 lightDir = normalize(vec3(1.2, 1.5, 1.0));
+      float diff = max(dot(vNormal, lightDir), 0.0);
+      float ambient = 0.5;
+      float light = ambient + diff * 0.5;
+      vec3 viewDir = normalize(vec3(0.0, 0.0, 1.0));
+      float limb = pow(max(dot(vNormal, viewDir), 0.0), 0.35);
+      light *= mix(0.55, 1.0, limb);
+      vec3 col = vec3(${r}, ${g}, ${b});
+      gl_FragColor = vec4(col * light, 1.0);
+    }
+  `
+}
+
+// ── Ring component ────────────────────────────────────────────────────────────
+function PlanetRing({ radius, color }: { radius: number; color: string }) {
+  const meshRef = useRef<THREE.Mesh>(null)
+  const mat = useMemo(() => {
+    const c = new THREE.Color(color)
+    return new THREE.ShaderMaterial({
+      uniforms: { uColor: { value: c } },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }
+      `,
+      fragmentShader: `
+        uniform vec3 uColor;
+        varying vec2 vUv;
+        void main() {
+          float r = length(vUv - 0.5) * 2.0;
+          float ring = smoothstep(0.55,0.6,r) * (1.0 - smoothstep(0.85,0.9,r));
+          float band = smoothstep(0.65,0.68,r) * (1.0 - smoothstep(0.72,0.75,r));
+          float alpha = ring * 0.55 + band * 0.3;
+          gl_FragColor = vec4(mix(uColor, vec3(1.0), 0.3), alpha);
+        }
+      `,
+      transparent: true,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    })
+  }, [color])
+
+  return (
+    <mesh ref={meshRef} rotation={[Math.PI * 0.35, 0.3, 0.1]} material={mat}>
+      <planeGeometry args={[radius * 6, radius * 6]} />
+    </mesh>
+  )
+}
+
+// ── Moon component ────────────────────────────────────────────────────────────
+function Moon({ parentRadius, color }: { parentRadius: number; color: string }) {
+  const groupRef = useRef<THREE.Group>(null)
+  const moonRadius = parentRadius * 0.28
+  const orbitRadius = parentRadius * 3.2
+  const speed = 0.4 + Math.random() * 0.3
+
+  useFrame(() => {
+    if (!groupRef.current) return
+    const t = Date.now() * 0.001 * speed
+    groupRef.current.position.set(
+      Math.cos(t) * orbitRadius,
+      Math.sin(t * 0.3) * parentRadius * 0.5,
+      Math.sin(t) * orbitRadius
+    )
+  })
+
+  return (
+    <group ref={groupRef}>
+      <mesh>
+        <sphereGeometry args={[moonRadius, 12, 12]} />
+        <meshStandardMaterial color={color} roughness={0.9} metalness={0.1} />
+      </mesh>
+    </group>
+  )
+}
+
+// ── Star label (HTML overlay): HUD-sized font, constant screen size at any distance ─
+const LABEL_DISTANCE_FACTOR = 1.5// tune so 14px matches HUD at typical view distance
+const labelStyles: React.CSSProperties = {
+  fontFamily: 'var(--font-mono)',
+  fontSize: '14px',
+  color: 'var(--color-text-secondary)',
+  whiteSpace: 'nowrap',
+  pointerEvents: 'none',
+  textShadow: '0 0 8px rgba(0,212,255,0.6)',
+  letterSpacing: '0.05em',
+}
+
+// ── BlogStar ──────────────────────────────────────────────────────────────────
+function BlogStar({ post }: { post: Post }) {
+  const groupRef = useRef<THREE.Group>(null)
+  const meshRef  = useRef<THREE.Mesh>(null)
+  const { camera } = useThree()
+  const showStarNames = useSpaceStore((s) => s.showStarNames)
+
+  const color       = TAG_COLORS[post.tags[0]] ?? TAG_COLORS.default
+  const radius      = SIZE_RADII[post.size] ?? SIZE_RADII[3]
+  const showRing    = hasRing(post.trajectoryOrder)
+  const showMoon    = hasMoon(post.trajectoryOrder)
+
+  const labelWorldPos = useMemo(
+    () => new THREE.Vector3(post.position[0], post.position[1] + radius + 1.2, post.position[2]),
+    [post.position, radius]
+  )
+  const [distanceFactor, setDistanceFactor] = useState(12)
+  const prevFactorRef = useRef(12)
+  useFrame(() => {
+    if (!showStarNames) return
+    const d = camera.position.distanceTo(labelWorldPos)
+    const next = Math.max(1, d * LABEL_DISTANCE_FACTOR)
+    if (Math.abs(next - prevFactorRef.current) > 0.5) {
+      prevFactorRef.current = next
+      setDistanceFactor(next)
+    }
+  })
+
+  const shaderMat = useMemo(() => new THREE.ShaderMaterial({
+    vertexShader,
+    fragmentShader: makePlanetFragmentShader(color),
+  }), [color])
+
+  const onMeshInit = (mesh: THREE.Mesh | null) => {
+    if (!mesh) return
+    mesh.userData.isBlogStar = true
+    mesh.userData.postId = post.id
+  }
+
+  useFrame(() => {
+    if (!groupRef.current) return
+    // Slow self-rotation
+    groupRef.current.rotation.y += 0.002
+  })
+
+  return (
+    <group position={post.position}>
+      <group ref={groupRef}>
+        <mesh ref={(m) => { meshRef.current = m!; onMeshInit(m) }} material={shaderMat}>
+          <sphereGeometry args={[radius, 48, 48]} />
+        </mesh>
+
+        {showRing && <PlanetRing radius={radius} color={color} />}
+        {showMoon && <Moon parentRadius={radius} color={color} />}
+      </group>
+
+      {/* Soft glow halo — raycastable:false so it never intercepts clicks */}
+      <mesh raycast={() => null}>
+        <sphereGeometry args={[radius * 1.6, 16, 16]} />
+        <meshStandardMaterial
+          color={color} emissive={color} emissiveIntensity={0.85}
+          transparent opacity={0.28} depthWrite={false}
+        />
+      </mesh>
+
+      {/* Scene light */}
+      <pointLight color={color} intensity={10} distance={radius * 28} decay={2} />
+
+      {showStarNames && (
+        <Html position={[0, radius + 1.2, 0]} center distanceFactor={distanceFactor} style={labelStyles}>
+          {post.title}
+        </Html>
+      )}
+    </group>
+  )
+}
+
+export default function BlogStars({ posts }: { posts: Post[] }) {
+  return <>{posts.map(post => <BlogStar key={post.id} post={post} />)}</>
+}

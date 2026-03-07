@@ -1,0 +1,72 @@
+import { CollectionConfig } from 'payload'
+
+export const Posts: CollectionConfig = {
+
+  slug: 'posts',
+
+  admin: {
+    useAsTitle: 'title'
+  },
+
+  fields: [
+
+    {
+      name: 'title',
+      type: 'text',
+      required: true
+    },
+
+    {
+      name: 'date',
+      type: 'date'
+    },
+
+    {
+      name: 'slug',
+      type: 'text',
+      required: true,
+      unique: true
+    },
+
+    {
+      name: 'excerpt',
+      type: 'textarea'
+    },
+
+    {
+      name: 'tags',
+      type: 'array',
+      fields: [
+        { name: 'tag', type: 'text' }
+      ]
+    },
+
+    {
+      name: 'size',
+      type: 'number'
+    },
+
+    {
+      name: 'trajectoryOrder',
+      type: 'number'
+    },
+
+    {
+      name: 'position',
+      type: 'group',
+      fields: [
+
+        { name: 'x', type: 'number' },
+        { name: 'y', type: 'number' },
+        { name: 'z', type: 'number' }
+
+      ]
+    },
+
+    {
+      name: 'content',
+      type: 'richText'
+    }
+
+  ]
+}
