@@ -32,6 +32,10 @@ export default function CameraController() {
   const navMode             = useSpaceStore((s) => s.navMode)
   const trajectoryStatus    = useSpaceStore((s) => s.trajectoryStatus)
   const trajectoryBreakout  = useSpaceStore((s) => s.trajectoryBreakout)
+  const mobileLook          = useSpaceStore((s) => s.mobileLook)
+  const mobileMove          = useSpaceStore((s) => s.mobileMove)
+  const mobilePinch         = useSpaceStore((s) => s.mobilePinch)
+  const mobileOrbit = useSpaceStore((s) => s.mobileOrbit)
   const setTrajectoryBreakout = useSpaceStore((s) => s.setTrajectoryBreakout)
   const setTrajectoryAnchor = useSpaceStore((s) => s.setTrajectoryAnchor)
 
@@ -39,6 +43,10 @@ export default function CameraController() {
   const navModeRef = useRef(navMode)
   const trajectoryStatusRef = useRef(trajectoryStatus)
   const trajectoryBreakoutRef = useRef(trajectoryBreakout)
+  const orbitCenter = useRef(new THREE.Vector3())
+  const orbitActive = useRef(false)
+  const universeRadius = useRef(0)
+  const starCenter = useRef(new THREE.Vector3())
 
   useEffect(() => { postsRef.current = posts }, [posts])
   useEffect(() => { navModeRef.current = navMode }, [navMode])
@@ -49,9 +57,49 @@ export default function CameraController() {
     camera.position.set(0, 0, 5)
   }, [camera])
 
+  useEffect(() => {
+    if (!posts.length) return
+  
+    const center = new THREE.Vector3()
+  
+    for (const p of posts) {
+      center.add(new THREE.Vector3(...p.position))
+    }
+  
+    center.divideScalar(posts.length)
+    starCenter.current.copy(center)
+  
+    // compute approximate universe radius
+    let maxDist = 0
+    for (const p of posts) {
+      const d = center.distanceTo(new THREE.Vector3(...p.position))
+      if (d > maxDist) maxDist = d
+    }
+  
+    universeRadius.current = maxDist
+  
+  }, [posts])
+
   const computeDest = (camPos: THREE.Vector3, starPos: THREE.Vector3) => {
-    const toCamera = camPos.clone().sub(starPos).normalize()
-    return starPos.clone().addScaledVector(toCamera, STOP_DISTANCE)
+
+    const dir = camPos.clone().sub(starPos)
+  
+    if (dir.lengthSq() < 0.001) {
+      // fallback direction if camera is too close
+      dir.set(0, 0, 1)
+    }
+  
+    dir.normalize()
+  
+    const dest = starPos.clone().addScaledVector(dir, STOP_DISTANCE)
+  
+    // clamp world bounds so camera never jumps away
+    dest.clamp(
+      new THREE.Vector3(-1000, -1000, -1000),
+      new THREE.Vector3(1000, 1000, 1000)
+    )
+  
+    return dest
   }
 
   const getAimedStarPos = (): THREE.Vector3 | null => {
@@ -204,7 +252,122 @@ export default function CameraController() {
 // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gl])
 
+  useEffect(() => {
+    camera.rotation.order = 'YXZ'
+  }, [camera])
+
   useFrame((_, delta) => {
+    // ── Mobile touch input (horizontal plane only, no vertical drift) ─
+    if (mobileMove.forward !== 0 || mobileMove.right !== 0 || mobileMove.up !== 0) {
+      // Project camera forward onto XZ plane so swipe never moves vertically
+      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
+      forward.y = 0
+      forward.normalize()
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion)
+      right.y = 0
+      right.normalize()
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion)
+      up.normalize()
+      camera.position.addScaledVector(forward, mobileMove.forward * delta * 60)
+      camera.position.addScaledVector(right,   mobileMove.right   * delta * 60)
+      camera.position.addScaledVector(up,   mobileMove.up   * delta * 60)
+    }
+    // ── Mobile pinch: move toward pinch midpoint ray ────────────────
+    // ── Mobile pinch: stable zoom toward pinch midpoint ─────────────
+    if (mobilePinch) {
+
+      const pinchVec = new THREE.Vector3(
+        mobilePinch.dx,
+        mobilePinch.dy,
+        mobilePinch.dz
+      )
+
+      // Apply movement directly (NO 60x amplification)
+      camera.position.addScaledVector(pinchVec, 1)
+
+      // Clamp distance so camera cannot fly away
+      const dist = camera.position.length()
+
+      const MIN_DIST = 2
+      const MAX_DIST = 300
+
+      if (dist < MIN_DIST) camera.position.setLength(MIN_DIST)
+      if (dist > MAX_DIST) camera.position.setLength(MAX_DIST)
+    }
+
+    if (mobileLook.dx !== 0 || mobileLook.dy !== 0) {
+      camera.rotation.y -= mobileLook.dx * 60
+      camera.rotation.x -= mobileLook.dy * 60
+      camera.rotation.x  = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x))
+    }
+
+    // ── Mobile orbit (true orbital camera) ─────────────
+
+    if (mobileOrbit.yaw !== 0 || mobileOrbit.pitch !== 0) {
+
+      // initialize orbit center only once
+      if (!orbitActive.current) {
+
+        const aimedStar = getAimedStarPos()
+      
+        if (aimedStar) {
+      
+          // orbit around the star you're looking at
+          orbitCenter.current.copy(aimedStar)
+      
+        } else {
+      
+          // fallback: orbit along current view direction
+          const dir = new THREE.Vector3()
+          camera.getWorldDirection(dir)
+      
+          const dist = camera.position.distanceTo(starCenter.current)
+      
+          const orbitRadius = Math.max(
+            dist,
+            universeRadius.current * 0.6
+          )
+      
+          orbitCenter.current
+            .copy(camera.position)
+            .addScaledVector(dir, orbitRadius)
+        }
+      
+        orbitActive.current = true
+      }
+    
+      const center = orbitCenter.current
+      const offset = camera.position.clone().sub(center)
+    
+      // horizontal orbit
+      offset.applyAxisAngle(
+        new THREE.Vector3(0,-1,0),
+        mobileOrbit.yaw * 60 * delta
+      )
+    
+      // vertical orbit
+      const right = new THREE.Vector3()
+        .crossVectors(offset, new THREE.Vector3(0,1,0))
+        .normalize()
+    
+      offset.applyAxisAngle(
+        right,
+        mobileOrbit.pitch * 60 * delta
+      )
+    
+      camera.position.copy(center.clone().add(offset))
+      const m = new THREE.Matrix4()
+      m.lookAt(camera.position, center, camera.up)
+
+      const targetQuat = new THREE.Quaternion().setFromRotationMatrix(m)
+
+      camera.quaternion.slerp(targetQuat, 0.15)
+    
+    } else {
+    
+      // orbit gesture ended
+      orbitActive.current = false
+    }
 
     // In trajectory mode, only run free roam when in breakout (right-click look-around)
     if (navModeRef.current === 'trajectory' && !trajectoryBreakoutRef.current) return
@@ -214,22 +377,21 @@ export default function CameraController() {
     if (flyStarPos.current && flyDest.current) {
 
       const star = flyStarPos.current
-
       const m = new THREE.Matrix4()
       m.lookAt(camera.position, star, camera.up)
-
       const targetQuat = new THREE.Quaternion().setFromRotationMatrix(m)
 
       camera.quaternion.slerp(targetQuat, 0.15)
-
       camera.position.lerp(flyDest.current, FLY_LERP)
 
+      const dist = camera.position.length()
+      if (dist > 1000) {
+        camera.position.setLength(1000)
+      }
+
       if (camera.position.distanceTo(flyDest.current) < 0.5) {
-
         camera.position.copy(flyDest.current)
-
         euler.current.setFromQuaternion(camera.quaternion,'YXZ')
-
         flyStarPos.current = null
         flyDest.current = null
       }
@@ -239,34 +401,27 @@ export default function CameraController() {
 
     // ---------- FREE ROAM ----------
 
-    camera.quaternion.setFromEuler(euler.current)
+    if (!orbitActive.current) {
+      camera.quaternion.setFromEuler(euler.current)
+    }
 
     if (isPointerLocked.current) {
-
       raycaster.current.setFromCamera(new THREE.Vector2(0,0), camera)
-
       const meshes: THREE.Mesh[] = []
 
       scene.traverse(child => {
-
         const m = child as THREE.Mesh
-
         if (m.isMesh && m.userData.isBlogStar) meshes.push(m)
       })
 
       const hits = raycaster.current.intersectObjects(meshes,false)
 
       if (hits.length > 0) {
-
-        const post =
-          postsRef.current.find(
+        const post = postsRef.current.find(
             p => p.id === hits[0].object.userData.postId
           ) ?? null
-
         setActivePost(post)
-
       } else {
-
         setActivePost(null)
       }
     }
@@ -276,12 +431,10 @@ export default function CameraController() {
     const up      = new THREE.Vector3()
 
     camera.getWorldDirection(forward)
-
     right.crossVectors(forward, camera.up).normalize()
     up.crossVectors(right, forward).normalize()
 
     const moveDir = new THREE.Vector3()
-
     const k = keys.current
 
     if (k.has('KeyW') || k.has('ArrowUp')) moveDir.add(forward)
@@ -292,27 +445,20 @@ export default function CameraController() {
     if (k.has('KeyQ') || k.has('KeyZ') || k.has('KeyC')) moveDir.sub(up)
 
     if (moveDir.length() > 0) {
-
       moveDir.normalize()
-
       velocity.current.add(
         moveDir.multiplyScalar(MOVE_SPEED * delta)
       )
     }
-
     if (Math.abs(scrollDolly.current) > 0.01) {
-
       velocity.current.add(
         forward.clone().multiplyScalar(
           -scrollDolly.current * delta * 2
         )
       )
-
       scrollDolly.current *= 0.85
     }
-
     velocity.current.multiplyScalar(DAMPING)
-
     camera.position.add(velocity.current)
 
   })

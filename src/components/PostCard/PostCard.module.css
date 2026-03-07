@@ -133,3 +133,16 @@
   border-color: var(--color-accent);
   box-shadow: var(--glow-accent);
 }
+
+/* ── Mobile PostCard — top half ────────────────────────────────────── */
+@media (max-width: 768px) {
+  .card {
+    top: var(--space-lg);
+    right: var(--space-md);
+    left: var(--space-md);
+    width: auto;
+    transform: none;
+    max-height: 44vh;
+    overflow-y: auto;
+  }
+}

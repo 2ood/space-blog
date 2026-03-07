@@ -37,31 +37,39 @@ interface SpaceStore {
 
   showStarNames: boolean
   setShowStarNames: (v: boolean) => void
+
+  /** Mobile touch: camera look delta per frame */
+  mobileLook: { dx: number; dy: number }
+  setMobileLook: (v: { dx: number; dy: number }) => void
+  /** Mobile touch: move delta per frame */
+  mobileMove: { forward: number; right: number, up:number }
+  setMobileMove: (v: { forward: number; right: number, up:number }) => void
+  /** Mobile pinch: move toward a specific world-space direction */
+  mobilePinch: { dx: number; dy: number; dz: number } | null
+  setMobilePinch: (v: { dx: number; dy: number; dz: number } | null) => void
+
+  mobileOrbit: { yaw: number; pitch: number }
+  setMobileOrbit: (o: { yaw: number; pitch: number }) => void
 }
 
 export const useSpaceStore = create<SpaceStore>((set) => ({
   posts: [],
   setPosts: (posts) => set({ posts }),
-
   activePost: null,
   setActivePost: (post) => set({ activePost: post }),
-
   isFreeroam: false,
   setIsFreeroam: (v) => set({ isFreeroam: v }),
-
   navMode: 'free',
   setNavMode: (mode) => set({ navMode: mode }),
 
   trajectorySequence: 'default',
   setTrajectorySequence: (id) => set({ trajectorySequence: id }),
-
   trajectoryStatus: 'idle',
   setTrajectoryStatus: (s) => set({ trajectoryStatus: s }),
   trajectoryIndex: 0,
   setTrajectoryIndex: (i) => set({ trajectoryIndex: i }),
   trajectoryProgress: 0,
   setTrajectoryProgress: (p) => set({ trajectoryProgress: p }),
-
   trajectoryBreakout: false,
   setTrajectoryBreakout: (v) => set({ trajectoryBreakout: v }),
   trajectoryAnchor: null,
@@ -69,4 +77,13 @@ export const useSpaceStore = create<SpaceStore>((set) => ({
 
   showStarNames: false,
   setShowStarNames: (v) => set({ showStarNames: v }),
+
+  mobileLook: { dx: 0, dy: 0 },
+  setMobileLook: (v) => set({ mobileLook: v }),
+  mobileMove: { forward: 0, right: 0, up: 0},
+  setMobileMove: (v) => set({ mobileMove: v }),
+  mobilePinch: null,
+  setMobilePinch: (v) => set({ mobilePinch: v }),
+  mobileOrbit: { yaw: 0, pitch: 0 },
+  setMobileOrbit: (o) => set({ mobileOrbit: o }),
 }))

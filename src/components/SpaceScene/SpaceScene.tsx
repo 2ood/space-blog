@@ -13,6 +13,7 @@ import CameraController from '@/components/CameraController/CameraController'
 import ControlPanel from '@/components/ControlPanel/ControlPanel'
 import HUD from '@/components/HUD/HUD'
 import PostCard from '@/components/PostCard/PostCard'
+import MobileControls from '@/components/MobileControls/MobileControls'
 import styles from './SpaceScene.module.css'
 
 export default function SpaceScene() {
@@ -57,11 +58,13 @@ export default function SpaceScene() {
           <TrajectoryController />
           <Preload all />
         </Suspense>
+        <MobileControls />
       </Canvas>
 
       <HUD />
       <ControlPanel />
       <PostCard />
+      
 
       {error && (
         <div className={styles.error}>
