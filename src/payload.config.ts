@@ -16,7 +16,7 @@ export default buildConfig({
   serverURL: process.env.NEXT_PUBLIC_SERVER_URL,
 
   db: mongooseAdapter({
-    url: process.env.MONGODB_URI!
+    url: process.env.MONGODB_URI || ""
   }),
 
   admin: {
