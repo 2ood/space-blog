@@ -28,10 +28,6 @@ export default function CameraController() {
   const tickMobile   = useMobileCamera(registry, bounds)
   const tickFreeRoam = useFreeRoam(registry)
 
-  useEffect(() => {
-    camera.rotation.order = 'YXZ'
-  }, [camera])
-
   useFrame((_, delta) => {
     const { navMode, trajectoryBreakout } = useSpaceStore.getState()
 
