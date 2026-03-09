@@ -13,6 +13,7 @@ import HUD from '@/components/HUD/HUD'
 import PostCard from '@/components/PostCard/PostCard'
 import PostOverlay from '@/components/PostOverlay/PostOverlay'
 import TrajectoryExitConfirm from '@/components/TrajectoryExitConfirm/TrajectoryExitConfirm'
+import SearchBar from '@/components/SearchBar/SearchBar'
 import MobileControls from '@/components/MobileControls/MobileControls'
 import {
   StarRegistryContext,
@@ -50,6 +51,7 @@ export default function SpaceScene() {
         </Canvas>
 
         <HUD />
+        <SearchBar />
         <ControlPanel />
         <PostCard />
         <PostOverlay />
