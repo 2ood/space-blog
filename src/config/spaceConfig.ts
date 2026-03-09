@@ -32,6 +32,19 @@ export const TRAJECTORY_SEQUENCES: { id: TrajectorySequenceId; label: string; co
 ]
 
 // ─── Constellation Connections ───────────────────────────────────────────────
-// Connections are stored in the Payload CMS 'connections' collection and
-// fetched at runtime via /api/connections. Do not hardcode them here —
-// they will drift out of sync when planets are added or removed via the UI.
+// Connections are now derived from posts.relatedPosts — no separate collection.
+
+// Directional (A→B only) — marching dotted cylinders
+export const CONSTELLATION_DOT_LENGTH   = 0.04   // fraction of line each dash occupies
+export const CONSTELLATION_GAP_LENGTH   = 0.01   // fraction of line each gap occupies
+export const CONSTELLATION_SCROLL_SPEED = 0.02   // offset units per second
+export const CONSTELLATION_OPACITY      = 0.4    // base opacity (breathes gently)
+export const CONSTELLATION_TUBE_RADIUS  = 0.2    // world-space cylinder radius
+export const CONSTELLATION_TUBE_SIDES   = 5      // pentagon cross-section
+
+export const CONSTELLATION_PERIOD = CONSTELLATION_DOT_LENGTH + CONSTELLATION_GAP_LENGTH
+export const CONSTELLATION_SLOTS   = Math.ceil(1.0 / CONSTELLATION_PERIOD) + 2
+
+// Bidirectional (A↔B) — solid tube, same radius
+export const CONSTELLATION_BIDIR_OPACITY = 0.25  // slightly dimmer than dots so it recedes
+

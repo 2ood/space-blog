@@ -18,6 +18,7 @@ export interface Post {
   position: [number, number, number]
   trajectoryOrder: number
   size: 1 | 2 | 3 | 4 | 5
+  relatedPosts: string[]   // IDs of outgoing directional connections
 }
 
 const SIZE_RADII: Record<number, number> = { 1:0.7, 2:1.0, 3:1.4, 4:1.9, 5:2.6 }

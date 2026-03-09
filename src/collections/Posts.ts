@@ -66,7 +66,17 @@ export const Posts: CollectionConfig = {
     {
       name: 'content',
       type: 'richText'
-    }
+    },
+
+    {
+      name: 'relatedPosts',
+      type: 'relationship',
+      relationTo: 'posts',
+      hasMany: true,
+      admin: {
+        description: 'Outgoing constellation connections from this post to others (directional: A → B).',
+      },
+    },
 
   ]
 }

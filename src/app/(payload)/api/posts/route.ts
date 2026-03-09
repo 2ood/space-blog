@@ -33,6 +33,10 @@ export async function GET() {
         Number(pos?.y ?? 0),
         Number(pos?.z ?? 0),
       ] as [number, number, number],
+      // depth:0 returns relationship fields as raw ID strings
+      relatedPosts: ((doc.relatedPosts ?? []) as (string | { id: string })[])
+        .map((r) => (typeof r === 'string' ? r : String(r.id)))
+        .filter(Boolean),
     }
   })
 
