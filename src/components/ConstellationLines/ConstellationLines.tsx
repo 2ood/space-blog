@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useRef } from 'react'
+import type React from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Post } from '@/components/BlogStars/BlogStars'
@@ -19,6 +20,8 @@ import {
 interface ConstellationLinesProps {
   posts: Post[]
 }
+
+const FADE_IN_DURATION = 1.5   // seconds to ramp from 0 → full opacity on mount
 
 // ── Bidirectional detection ───────────────────────────────────────────────────
 interface EdgeData {
@@ -78,11 +81,12 @@ function deriveEdges(posts: Post[], posMap: Record<string, { pos: THREE.Vector3;
 }
 
 // ── Directional: marching dot cylinders ──────────────────────────────────────
-function DirectionalConnection({ fromPos, toPos, color, phaseOffset }: {
+function DirectionalConnection({ fromPos, toPos, color, phaseOffset, fadeRef }: {
   fromPos:     THREE.Vector3
   toPos:       THREE.Vector3
   color:       string
   phaseOffset: number
+  fadeRef:     React.MutableRefObject<number>
 }) {
   const offsetRef = useRef(phaseOffset * CONSTELLATION_PERIOD)
   const matsRef   = useRef<(THREE.MeshBasicMaterial | null)[]>([])
@@ -105,8 +109,9 @@ function DirectionalConnection({ fromPos, toPos, color, phaseOffset }: {
 
   useFrame((_, delta) => {
     offsetRef.current = (offsetRef.current + CONSTELLATION_SCROLL_SPEED * delta) % CONSTELLATION_PERIOD
-    const off = offsetRef.current
-    const breathe = CONSTELLATION_OPACITY + Math.sin(Date.now() * 0.001 * 0.4) * 0.08
+    const off    = offsetRef.current
+    const fade   = fadeRef.current
+    const breathe = (CONSTELLATION_OPACITY + Math.sin(Date.now() * 0.001 * 0.4) * 0.08) * fade
 
     for (let k = 0; k < CONSTELLATION_SLOTS; k++) {
       const mesh = meshesRef.current[k]
@@ -146,10 +151,11 @@ function DirectionalConnection({ fromPos, toPos, color, phaseOffset }: {
 }
 
 // ── Bidirectional: solid tube ─────────────────────────────────────────────────
-function BidirectionalConnection({ fromPos, toPos, color }: {
+function BidirectionalConnection({ fromPos, toPos, color, fadeRef }: {
   fromPos: THREE.Vector3
   toPos:   THREE.Vector3
   color:   string
+  fadeRef: React.MutableRefObject<number>
 }) {
   const matRef = useRef<THREE.MeshBasicMaterial | null>(null)
 
@@ -165,8 +171,8 @@ function BidirectionalConnection({ fromPos, toPos, color }: {
 
   useFrame(() => {
     if (matRef.current) {
-      matRef.current.opacity = CONSTELLATION_BIDIR_OPACITY
-        + Math.sin(Date.now() * 0.001 * 0.4) * 0.05
+      matRef.current.opacity = (CONSTELLATION_BIDIR_OPACITY
+        + Math.sin(Date.now() * 0.001 * 0.4) * 0.05) * fadeRef.current
     }
   })
 
@@ -186,6 +192,14 @@ function BidirectionalConnection({ fromPos, toPos, color }: {
 
 // ── Root component ────────────────────────────────────────────────────────────
 export default function ConstellationLines({ posts }: ConstellationLinesProps) {
+  // Ramps 0 → 1 over FADE_IN_DURATION seconds on mount
+  const fadeRef = useRef(0)
+  useFrame((_, delta) => {
+    if (fadeRef.current < 1) {
+      fadeRef.current = Math.min(1, fadeRef.current + delta / FADE_IN_DURATION)
+    }
+  })
+
   const posMap = useMemo(() => {
     const map: Record<string, { pos: THREE.Vector3; color: string }> = {}
     posts.forEach(p => {
@@ -205,7 +219,7 @@ export default function ConstellationLines({ posts }: ConstellationLinesProps) {
   return (
     <group>
       {bidirectional.map(({ fromPos, toPos, color, key }) => (
-        <BidirectionalConnection key={key} fromPos={fromPos} toPos={toPos} color={color} />
+        <BidirectionalConnection key={key} fromPos={fromPos} toPos={toPos} color={color} fadeRef={fadeRef} />
       ))}
       {directional.map(({ fromPos, toPos, color, key }, i) => (
         <DirectionalConnection
@@ -214,6 +228,7 @@ export default function ConstellationLines({ posts }: ConstellationLinesProps) {
           toPos={toPos}
           color={color}
           phaseOffset={i / Math.max(directional.length, 1)}
+          fadeRef={fadeRef}
         />
       ))}
     </group>

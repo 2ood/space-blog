@@ -1,12 +1,17 @@
 'use client'
 
-import { useRef, useMemo, useState, useEffect, useContext } from 'react'
+import { useRef, useMemo, useState, useEffect, useContext, useCallback } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { TAG_COLORS } from '@/config/spaceConfig'
 import { useSpaceStore } from '@/store/spaceStore'
 import { StarRegistryContext } from '@/hooks/camera/useBlogStarRegistry'
+
+// Big Bang spring constants
+const BB_STIFFNESS  = 0.045   // how fast each planet rushes to its position
+const BB_DONE_RAD   = 0.08    // distance threshold to consider a planet "arrived"
+const BB_SETTLE_MS  = 800     // extra wait after last planet lands before showing lines
 
 export interface Post {
   id: string
@@ -136,7 +141,11 @@ const labelStyles: React.CSSProperties = {
 }
 
 // ── BlogStar ──────────────────────────────────────────────────────────────────
-function BlogStar({ post }: { post: Post }) {
+function BlogStar({ post, centroid, onArrived }: {
+  post:      Post
+  centroid:  THREE.Vector3
+  onArrived: () => void
+}) {
   const groupRef  = useRef<THREE.Group>(null)
   const meshRef   = useRef<THREE.Mesh>(null)
   const hitboxRef = useRef<THREE.Mesh>(null)
@@ -148,19 +157,45 @@ function BlogStar({ post }: { post: Post }) {
   const showRing    = hasRing(post.trajectoryOrder)
   const showMoon    = hasMoon(post.trajectoryOrder)
 
+  // ── Big Bang spring ───────────────────────────────────────────────
+  const target      = useMemo(() => new THREE.Vector3(...post.position), [post.position])
+  const currentPos  = useRef(centroid.clone())   // start at centroid, not world origin
+  const arrivedRef  = useRef(false)
+
   const labelWorldPos = useMemo(
     () => new THREE.Vector3(post.position[0], post.position[1] + radius + 1.2, post.position[2]),
     [post.position, radius]
   )
   const [distanceFactor, setDistanceFactor] = useState(12)
   const prevFactorRef = useRef(12)
+
   useFrame(() => {
-    if (!showStarNames) return
-    const d = camera.position.distanceTo(labelWorldPos)
-    const next = Math.max(1, d * LABEL_DISTANCE_FACTOR)
-    if (Math.abs(next - prevFactorRef.current) > 0.5) {
-      prevFactorRef.current = next
-      setDistanceFactor(next)
+    if (!groupRef.current) return
+
+    // Spring toward target
+    if (!arrivedRef.current) {
+      currentPos.current.lerp(target, BB_STIFFNESS)
+      groupRef.current.position.copy(currentPos.current)
+
+      if (currentPos.current.distanceTo(target) < BB_DONE_RAD) {
+        groupRef.current.position.copy(target)
+        currentPos.current.copy(target)
+        arrivedRef.current = true
+        onArrived()
+      }
+    }
+
+    // Planet self-rotation
+    groupRef.current.rotation.y += 0.002
+
+    // Label distance factor
+    if (showStarNames) {
+      const d = camera.position.distanceTo(labelWorldPos)
+      const next = Math.max(1, d * LABEL_DISTANCE_FACTOR)
+      if (Math.abs(next - prevFactorRef.current) > 0.5) {
+        prevFactorRef.current = next
+        setDistanceFactor(next)
+      }
     }
   })
 
@@ -170,7 +205,6 @@ function BlogStar({ post }: { post: Post }) {
   }), [color])
 
   // Register the hitbox mesh (2.5× radius) so raycasts are generous.
-  // userData on both visual + hitbox so any legacy code still works.
   const registry = useContext(StarRegistryContext)
   useEffect(() => {
     const mesh = hitboxRef.current ?? meshRef.current
@@ -185,21 +219,15 @@ function BlogStar({ post }: { post: Post }) {
     return () => registry.unregister(post.id)
   }, [post.id, registry])
 
-  useFrame(() => {
-    if (!groupRef.current) return
-    groupRef.current.rotation.y += 0.002
-  })
-
   return (
-    <group position={post.position}>
-      <group ref={groupRef}>
-        <mesh ref={meshRef} material={shaderMat}>
-          <sphereGeometry args={[radius, 48, 48]} />
-        </mesh>
+    // group starts at [0,0,0]; useFrame spring drives it to post.position
+    <group ref={groupRef}>
+      <mesh ref={meshRef} material={shaderMat}>
+        <sphereGeometry args={[radius, 48, 48]} />
+      </mesh>
 
-        {showRing && <PlanetRing radius={radius} color={color} />}
-        {showMoon && <Moon parentRadius={radius} color={color} />}
-      </group>
+      {showRing && <PlanetRing radius={radius} color={color} />}
+      {showMoon && <Moon parentRadius={radius} color={color} />}
 
       {/* Invisible hit-area — 2.5× the visual radius for generous tap/click targets */}
       <mesh ref={hitboxRef} visible={false}>
@@ -207,7 +235,7 @@ function BlogStar({ post }: { post: Post }) {
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
 
-      {/* Soft glow halo — raycastable:false so it never intercepts clicks */}
+      {/* Soft glow halo */}
       <mesh raycast={() => null}>
         <sphereGeometry args={[radius * 1.6, 16, 16]} />
         <meshStandardMaterial
@@ -229,5 +257,38 @@ function BlogStar({ post }: { post: Post }) {
 }
 
 export default function BlogStars({ posts }: { posts: Post[] }) {
-  return <>{posts.map(post => <BlogStar key={post.id} post={post} />)}</>
+  const setBigBangDone = useSpaceStore((s) => s.setBigBangDone)
+  const arrivedCount   = useRef(0)
+
+  const handleArrived = useCallback(() => {
+    arrivedCount.current += 1
+    if (arrivedCount.current >= posts.length) {
+      setTimeout(() => setBigBangDone(true), BB_SETTLE_MS)
+    }
+  }, [posts.length, setBigBangDone])
+
+  // Average position of all stars — big bang explodes outward from here
+  const centroid = useMemo(() => {
+    if (posts.length === 0) return new THREE.Vector3()
+    const sum = posts.reduce(
+      (acc, p) => acc.add(new THREE.Vector3(...p.position)),
+      new THREE.Vector3()
+    )
+    return sum.divideScalar(posts.length)
+  }, [posts])
+
+  // Reset counter when posts change (e.g. refetch)
+  useEffect(() => {
+    arrivedCount.current = 0
+  }, [posts])
+
+  if (posts.length === 0) return null
+
+  return (
+    <>
+      {posts.map(post => (
+        <BlogStar key={post.id} post={post} centroid={centroid} onArrived={handleArrived} />
+      ))}
+    </>
+  )
 }

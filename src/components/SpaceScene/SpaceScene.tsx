@@ -14,17 +14,23 @@ import PostCard from '@/components/PostCard/PostCard'
 import PostOverlay from '@/components/PostOverlay/PostOverlay'
 import TrajectoryExitConfirm from '@/components/TrajectoryExitConfirm/TrajectoryExitConfirm'
 import SearchBar from '@/components/SearchBar/SearchBar'
+import BigBangLoader from '@/components/BigBangLoader/BigBangLoader'
 import MobileControls from '@/components/MobileControls/MobileControls'
 import {
   StarRegistryContext,
   useCreateStarRegistry,
 } from '@/hooks/camera/useBlogStarRegistry'
 import { usePosts } from '@/hooks/usePosts'
+import { useSpaceStore } from '@/store/spaceStore'
 import styles from './SpaceScene.module.css'
 
 export default function SpaceScene() {
-  const registry = useCreateStarRegistry()
-  const { posts, error } = usePosts()
+  const registry    = useCreateStarRegistry()
+  const { posts, loading, error } = usePosts()
+  const bigBangDone = useSpaceStore((s) => s.bigBangDone)
+
+  // Show loader only while fetching — expansion plays visibly after
+  const loaderVisible = loading
 
   return (
     <StarRegistryContext.Provider value={registry}>
@@ -42,7 +48,7 @@ export default function SpaceScene() {
             <StarField count={10} spread={200} />
             <StarField count={6000} spread={900} opacity={0.55} size={0.5} />
             <BlogStars posts={posts} />
-            <ConstellationLines posts={posts} />
+            {bigBangDone && <ConstellationLines posts={posts} />}
             <CameraController />
             <TrajectoryController />
             <Preload all />
@@ -56,6 +62,7 @@ export default function SpaceScene() {
         <PostCard />
         <PostOverlay />
         <TrajectoryExitConfirm />
+        <BigBangLoader visible={loaderVisible} />
 
         {error && (
           <div className={styles.error}>

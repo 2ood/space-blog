@@ -53,6 +53,10 @@ interface SpaceStore {
   showStarNames: boolean
   setShowStarNames: (v: boolean) => void
 
+  /** True once the big-bang expansion animation completes — gates loading screen removal */
+  bigBangDone: boolean
+  setBigBangDone: (v: boolean) => void
+
   /** Mobile touch: world-space pan delta per frame (x = left/right, y = up/down) */
   mobileMove: { x: number; y: number }
   setMobileMove: (v: { x: number; y: number }) => void
@@ -105,6 +109,9 @@ export const useSpaceStore = create<SpaceStore>((set) => ({
 
   showStarNames: false,
   setShowStarNames: (v) => set({ showStarNames: v }),
+
+  bigBangDone: false,
+  setBigBangDone: (v) => set({ bigBangDone: v }),
 
   mobileMove: { x: 0, y: 0 },
   setMobileMove: (v) => set({ mobileMove: v }),
