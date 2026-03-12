@@ -53,6 +53,18 @@ interface SpaceStore {
   showStarNames: boolean
   setShowStarNames: (v: boolean) => void
 
+  /** True while the search bar is expanded — blocks locomotion keys */
+  searchOpen: boolean
+  setSearchOpen: (v: boolean) => void
+
+  /** True while the add-post drawer is open */
+  addPostOpen: boolean
+  setAddPostOpen: (v: boolean) => void
+
+  /** Live preview position for the new planet — rendered inside Canvas */
+  pendingPlanetPreview: [number, number, number] | null
+  setPendingPlanetPreview: (v: [number, number, number] | null) => void
+
   /** True once the big-bang expansion animation completes — gates loading screen removal */
   bigBangDone: boolean
   setBigBangDone: (v: boolean) => void
@@ -109,6 +121,15 @@ export const useSpaceStore = create<SpaceStore>((set) => ({
 
   showStarNames: false,
   setShowStarNames: (v) => set({ showStarNames: v }),
+
+  searchOpen: false,
+  setSearchOpen: (v) => set({ searchOpen: v }),
+
+  addPostOpen: false,
+  setAddPostOpen: (v) => set({ addPostOpen: v }),
+
+  pendingPlanetPreview: null,
+  setPendingPlanetPreview: (v) => set({ pendingPlanetPreview: v }),
 
   bigBangDone: false,
   setBigBangDone: (v) => set({ bigBangDone: v }),

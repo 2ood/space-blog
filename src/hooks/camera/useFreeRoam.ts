@@ -67,7 +67,13 @@ export function useFreeRoam(registry: StarRegistryHandle): FreeRoamTick {
     (s) => { postsRef.current = s.posts }
   ), [])
 
-  // ── Camera init ───────────────────────────────────────────────────
+  const searchOpenRef = useRef(useSpaceStore.getState().searchOpen)
+  useEffect(() => useSpaceStore.subscribe(
+    (s) => {
+      if (s.searchOpen && !searchOpenRef.current) keys.current.clear()
+      searchOpenRef.current = s.searchOpen
+    }
+  ), [])
   useEffect(() => {
     camera.position.set(0, 0, 5)
   }, [camera])
@@ -84,13 +90,8 @@ export function useFreeRoam(registry: StarRegistryHandle): FreeRoamTick {
   useEffect(() => {
     const canvas = gl.domElement
 
-    const isInputFocused = () => {
-      const el = document.activeElement
-      return el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement
-    }
-
-    const onKeyDown = (e: KeyboardEvent) => { if (!isInputFocused()) keys.current.add(e.code) }
-    const onKeyUp   = (e: KeyboardEvent) => { if (!isInputFocused()) keys.current.delete(e.code) }
+    const onKeyDown = (e: KeyboardEvent) => { if (!searchOpenRef.current) keys.current.add(e.code) }
+    const onKeyUp   = (e: KeyboardEvent) => { if (!searchOpenRef.current) keys.current.delete(e.code) }
 
     const onContextMenu = (e: MouseEvent) => e.preventDefault()
 
@@ -213,15 +214,8 @@ export function useFreeRoam(registry: StarRegistryHandle): FreeRoamTick {
       scrollDolly.current += e.deltaY * SCROLL_SPEED
     }
 
-    const onFocusIn = (e: FocusEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        keys.current.clear()
-      }
-    }
-
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup',   onKeyUp)
-    window.addEventListener('focusin', onFocusIn)
     window.addEventListener('mousedown', onMouseDown)
     canvas.addEventListener('contextmenu', onContextMenu)
     canvas.addEventListener('wheel', onWheel, { passive: false })
@@ -231,7 +225,6 @@ export function useFreeRoam(registry: StarRegistryHandle): FreeRoamTick {
     return () => {
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup',   onKeyUp)
-      window.removeEventListener('focusin', onFocusIn)
       window.removeEventListener('mousedown', onMouseDown)
       canvas.removeEventListener('contextmenu', onContextMenu)
       canvas.removeEventListener('wheel', onWheel)

@@ -4,7 +4,7 @@ import { useRef, useMemo, useState, useEffect, useContext, useCallback } from 'r
 import { useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
-import { TAG_COLORS } from '@/config/spaceConfig'
+import { getCategoryColor } from '@/config/spaceConfig'
 import { useSpaceStore } from '@/store/spaceStore'
 import { StarRegistryContext } from '@/hooks/camera/useBlogStarRegistry'
 
@@ -13,12 +13,24 @@ const BB_STIFFNESS  = 0.045   // how fast each planet rushes to its position
 const BB_DONE_RAD   = 0.08    // distance threshold to consider a planet "arrived"
 const BB_SETTLE_MS  = 800     // extra wait after last planet lands before showing lines
 
+export interface Category {
+  id: string
+  name: string
+  color: string
+}
+
+export interface Tag {
+  id: string
+  name: string
+}
+
 export interface Post {
   id: string
   title: string
   slug: string
   date: string
-  tags: string[]
+  category: Category | null
+  tags: Tag[]
   excerpt: string
   position: [number, number, number]
   trajectoryOrder: number
@@ -152,7 +164,7 @@ function BlogStar({ post, centroid, onArrived }: {
   const { camera } = useThree()
   const showStarNames = useSpaceStore((s) => s.showStarNames)
 
-  const color       = TAG_COLORS[post.tags[0]] ?? TAG_COLORS.default
+  const color       = getCategoryColor(post.category?.color, post.category?.name)
   const radius      = SIZE_RADII[post.size] ?? SIZE_RADII[3]
   const showRing    = hasRing(post.trajectoryOrder)
   const showMoon    = hasMoon(post.trajectoryOrder)

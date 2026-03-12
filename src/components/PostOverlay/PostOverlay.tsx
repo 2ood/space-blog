@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { RichText } from '@payloadcms/richtext-lexical/react'
 import type { SerializedEditorState } from '@payloadcms/richtext-lexical/lexical'
 import { useSpaceStore } from '@/store/spaceStore'
+import type { Tag } from '@/components/BlogStars/BlogStars'
 import styles from './PostOverlay.module.css'
 
 interface FullPost {
@@ -22,7 +23,7 @@ interface FullPost {
   slug: string
   date: string
   excerpt: string
-  tags: string[]
+  tags: Tag[]
   content: SerializedEditorState | null
 }
 
@@ -134,7 +135,7 @@ export default function PostOverlay() {
                   {post.tags.length > 0 && (
                     <div className={styles.tags}>
                       {post.tags.map(tag => (
-                        <span key={tag} className={styles.tag}>{tag}</span>
+                        <span key={tag.id} className={styles.tag}>{tag.name}</span>
                       ))}
                     </div>
                   )}

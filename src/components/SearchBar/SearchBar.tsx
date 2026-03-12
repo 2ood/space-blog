@@ -22,13 +22,13 @@ function search(query: string, posts: Post[]): MatchResult[] {
 
   posts.forEach(post => {
     const titleLower   = post.title.toLowerCase()
-    const tagsLower    = post.tags.map(t => t.toLowerCase())
+    const tagsLower    = post.tags.map(t => t.name.toLowerCase())
     const excerptLower = post.excerpt.toLowerCase()
 
     if (titleLower.includes(q)) {
       results.push({ post, score: 3, field: 'title', excerpt: post.title })
     } else if (tagsLower.some(t => t.includes(q))) {
-      results.push({ post, score: 2, field: 'tag', excerpt: post.tags.join(', ') })
+      results.push({ post, score: 2, field: 'tag', excerpt: post.tags.map(t => t.name).join(', ') })
     } else if (excerptLower.includes(q)) {
       // Grab a snippet around the match
       const idx   = excerptLower.indexOf(q)
@@ -59,14 +59,15 @@ function highlight(text: string, query: string): React.ReactNode {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function SearchBar() {
-  const posts          = useSpaceStore((s) => s.posts)
+  const posts           = useSpaceStore((s) => s.posts)
   const setPendingFlyTo = useSpaceStore((s) => s.setPendingFlyTo)
+  const setSearchOpen   = useSpaceStore((s) => s.setSearchOpen)
 
   const [open,    setOpen]    = useState(false)
   const [query,   setQuery]   = useState('')
-  const [focused, setFocused] = useState(-1)   // keyboard-nav index
+  const [focused, setFocused] = useState(-1)
 
-  const inputRef    = useRef<HTMLInputElement>(null)
+  const inputRef     = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const results = useMemo(() => search(query, posts), [query, posts])
@@ -74,16 +75,17 @@ export default function SearchBar() {
   // ── Open / close ──────────────────────────────────────────────────
   const openBar = useCallback(() => {
     setOpen(true)
+    setSearchOpen(true)
     setFocused(-1)
-    requestAnimationFrame(() => inputRef.current?.focus())
-  }, [])
+  }, [setSearchOpen])
 
   const closeBar = useCallback(() => {
     setOpen(false)
+    setSearchOpen(false)
     setQuery('')
     setFocused(-1)
     inputRef.current?.blur()
-  }, [])
+  }, [setSearchOpen])
 
   // ── Select a result ───────────────────────────────────────────────
   const selectResult = useCallback((post: Post) => {
@@ -108,8 +110,18 @@ export default function SearchBar() {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, openBar])
 
+  // ── Auto-focus when bar expands ──────────────────────────────────
+  useEffect(() => {
+    if (open) {
+      requestAnimationFrame(() => inputRef.current?.focus())
+    }
+  }, [open])
+
   // ── Keyboard navigation inside the bar ───────────────────────────
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // Always stop propagation so locomotion / panel hotkeys never fire
+    e.stopPropagation()
+
     if (e.key === 'Escape') { closeBar(); return }
     if (e.key === 'ArrowDown') {
       e.preventDefault()
@@ -167,6 +179,7 @@ export default function SearchBar() {
             animate={{ opacity: 1, scaleX: 1,    y: 0  }}
             exit={{ opacity: 0, scaleX: 0.85, y: -4 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            onAnimationComplete={() => inputRef.current?.focus()}
           >
             <div className={styles.inputRow}>
               <SearchIcon dim />
@@ -211,7 +224,7 @@ export default function SearchBar() {
                       <span className={styles.resultMeta}>
                         {fieldLabel(field)}
                         <span className={styles.resultExcerpt}>
-                          {field !== 'title' ? highlight(excerpt, query) : post.tags[0] ?? ''}
+                          {field !== 'title' ? highlight(excerpt, query) : post.tags[0]?.name ?? ""}
                         </span>
                       </span>
                     </li>

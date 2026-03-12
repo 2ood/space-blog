@@ -19,12 +19,15 @@ export default async function PostPage({ params }: Props) {
     collection: 'posts',
     where: { slug: { equals: slug } },
     limit: 1,
+    depth: 1,
   })
 
   const post = result.docs[0]
   if (!post) notFound()
 
-  const tags: string[] = (post.tags ?? []).map((t: { tag?: string }) => t.tag ?? '')
+  const tags = ((post.tags ?? []) as { id?: string; name?: string }[])
+    .map(t => ({ id: String(t.id ?? ''), name: String(t.name ?? '') }))
+    .filter(t => t.name)
   const date = post.date
     ? new Date(post.date as string).toLocaleDateString('en-US', {
         year: 'numeric', month: 'long', day: 'numeric',
@@ -47,7 +50,7 @@ export default async function PostPage({ params }: Props) {
         {tags.length > 0 && (
           <div className={styles.tags}>
             {tags.map(tag => (
-              <span key={tag} className={styles.tag}>{tag}</span>
+              <span key={tag.id} className={styles.tag}>{tag.name}</span>
             ))}
           </div>
         )}

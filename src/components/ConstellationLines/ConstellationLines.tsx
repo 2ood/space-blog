@@ -5,7 +5,7 @@ import type React from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Post } from '@/components/BlogStars/BlogStars'
-import { TAG_COLORS } from '@/config/spaceConfig'
+import { getCategoryColor } from '@/config/spaceConfig'
 import {
   CONSTELLATION_DOT_LENGTH,
   CONSTELLATION_SCROLL_SPEED,
@@ -15,7 +15,10 @@ import {
   CONSTELLATION_PERIOD,
   CONSTELLATION_SLOTS,
   CONSTELLATION_BIDIR_OPACITY,
+  CONSTELLATION_OPACITY_MOBILE,
+  CONSTELLATION_BIDIR_OPACITY_MOBILE,
 } from '@/config/spaceConfig'
+import { useMobile } from '@/hooks/useMobile'
 
 interface ConstellationLinesProps {
   posts: Post[]
@@ -81,12 +84,13 @@ function deriveEdges(posts: Post[], posMap: Record<string, { pos: THREE.Vector3;
 }
 
 // ── Directional: marching dot cylinders ──────────────────────────────────────
-function DirectionalConnection({ fromPos, toPos, color, phaseOffset, fadeRef }: {
+function DirectionalConnection({ fromPos, toPos, color, phaseOffset, fadeRef, baseOpacity }: {
   fromPos:     THREE.Vector3
   toPos:       THREE.Vector3
   color:       string
   phaseOffset: number
   fadeRef:     React.MutableRefObject<number>
+  baseOpacity: number
 }) {
   const offsetRef = useRef(phaseOffset * CONSTELLATION_PERIOD)
   const matsRef   = useRef<(THREE.MeshBasicMaterial | null)[]>([])
@@ -111,7 +115,7 @@ function DirectionalConnection({ fromPos, toPos, color, phaseOffset, fadeRef }: 
     offsetRef.current = (offsetRef.current + CONSTELLATION_SCROLL_SPEED * delta) % CONSTELLATION_PERIOD
     const off    = offsetRef.current
     const fade   = fadeRef.current
-    const breathe = (CONSTELLATION_OPACITY + Math.sin(Date.now() * 0.001 * 0.4) * 0.08) * fade
+    const breathe = (baseOpacity + Math.sin(Date.now() * 0.001 * 0.4) * 0.08) * fade
 
     for (let k = 0; k < CONSTELLATION_SLOTS; k++) {
       const mesh = meshesRef.current[k]
@@ -141,7 +145,7 @@ function DirectionalConnection({ fromPos, toPos, color, phaseOffset, fadeRef }: 
             ref={(m) => { matsRef.current[k] = m }}
             color={color}
             transparent
-            opacity={CONSTELLATION_OPACITY}
+            opacity={baseOpacity}
             depthWrite={false}
           />
         </mesh>
@@ -151,11 +155,12 @@ function DirectionalConnection({ fromPos, toPos, color, phaseOffset, fadeRef }: 
 }
 
 // ── Bidirectional: solid tube ─────────────────────────────────────────────────
-function BidirectionalConnection({ fromPos, toPos, color, fadeRef }: {
-  fromPos: THREE.Vector3
-  toPos:   THREE.Vector3
-  color:   string
-  fadeRef: React.MutableRefObject<number>
+function BidirectionalConnection({ fromPos, toPos, color, fadeRef, baseOpacity }: {
+  fromPos:     THREE.Vector3
+  toPos:       THREE.Vector3
+  color:       string
+  fadeRef:     React.MutableRefObject<number>
+  baseOpacity: number
 }) {
   const matRef = useRef<THREE.MeshBasicMaterial | null>(null)
 
@@ -171,7 +176,7 @@ function BidirectionalConnection({ fromPos, toPos, color, fadeRef }: {
 
   useFrame(() => {
     if (matRef.current) {
-      matRef.current.opacity = (CONSTELLATION_BIDIR_OPACITY
+      matRef.current.opacity = (baseOpacity
         + Math.sin(Date.now() * 0.001 * 0.4) * 0.05) * fadeRef.current
     }
   })
@@ -192,6 +197,10 @@ function BidirectionalConnection({ fromPos, toPos, color, fadeRef }: {
 
 // ── Root component ────────────────────────────────────────────────────────────
 export default function ConstellationLines({ posts }: ConstellationLinesProps) {
+  const isMobile = useMobile()
+  const dirOpacity  = isMobile ? CONSTELLATION_OPACITY_MOBILE  : CONSTELLATION_OPACITY
+  const bidirOpacity = isMobile ? CONSTELLATION_BIDIR_OPACITY_MOBILE : CONSTELLATION_BIDIR_OPACITY
+
   // Ramps 0 → 1 over FADE_IN_DURATION seconds on mount
   const fadeRef = useRef(0)
   useFrame((_, delta) => {
@@ -205,7 +214,7 @@ export default function ConstellationLines({ posts }: ConstellationLinesProps) {
     posts.forEach(p => {
       map[p.id] = {
         pos:   new THREE.Vector3(...p.position),
-        color: TAG_COLORS[p.tags[0]] ?? TAG_COLORS.default,
+        color: getCategoryColor(p.category?.color, p.category?.name),
       }
     })
     return map
@@ -219,7 +228,7 @@ export default function ConstellationLines({ posts }: ConstellationLinesProps) {
   return (
     <group>
       {bidirectional.map(({ fromPos, toPos, color, key }) => (
-        <BidirectionalConnection key={key} fromPos={fromPos} toPos={toPos} color={color} fadeRef={fadeRef} />
+        <BidirectionalConnection key={key} fromPos={fromPos} toPos={toPos} color={color} fadeRef={fadeRef} baseOpacity={bidirOpacity} />
       ))}
       {directional.map(({ fromPos, toPos, color, key }, i) => (
         <DirectionalConnection
@@ -229,6 +238,7 @@ export default function ConstellationLines({ posts }: ConstellationLinesProps) {
           color={color}
           phaseOffset={i / Math.max(directional.length, 1)}
           fadeRef={fadeRef}
+          baseOpacity={dirOpacity}
         />
       ))}
     </group>

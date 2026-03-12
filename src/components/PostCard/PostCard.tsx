@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { useEffect, useSyncExternalStore } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSpaceStore } from '@/store/spaceStore'
+import type { Tag } from '@/components/BlogStars/BlogStars'
 import styles from './PostCard.module.css'
 
 // SSR-safe mount check — avoids the setState-in-effect pattern
@@ -44,8 +45,8 @@ export default function PostCard() {
 
           <div className={styles.header}>
             <div className={styles.tags}>
-              {post.tags.map(tag => (
-                <span key={tag} className={styles.tag}>{tag}</span>
+              {post.tags.map((tag: Tag) => (
+                <span key={tag.id} className={styles.tag}>{tag.name}</span>
               ))}
             </div>
             <button className={styles.close} onClick={() => setActivePost(null)} aria-label="Close">

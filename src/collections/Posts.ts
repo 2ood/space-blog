@@ -34,11 +34,23 @@ export const Posts: CollectionConfig = {
     },
 
     {
+      name: 'category',
+      type: 'relationship',
+      relationTo: 'categories',
+      hasMany: false,
+      admin: {
+        description: 'Primary category — determines planet colour and cluster placement.',
+      },
+    },
+
+    {
       name: 'tags',
-      type: 'array',
-      fields: [
-        { name: 'tag', type: 'text' }
-      ]
+      type: 'relationship',
+      relationTo: 'tags',
+      hasMany: true,
+      admin: {
+        description: 'Keyword tags for search and filtering (optional, pick any number).',
+      },
     },
 
     {

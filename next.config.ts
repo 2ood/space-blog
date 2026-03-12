@@ -3,7 +3,6 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  reactCompiler: true,
 };
 
-export default withPayload(withPayload(nextConfig));
+export default withPayload(nextConfig);

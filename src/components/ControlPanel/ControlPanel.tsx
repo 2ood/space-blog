@@ -19,9 +19,12 @@ export default function ControlPanel() {
     play, restart, prev, next, changeSequence, switchMode,
   } = useTrajectory()
 
+  const setAddPostOpen = useSpaceStore((s) => s.setAddPostOpen)
+
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (useSpaceStore.getState().searchOpen) return
       if (e.code === 'KeyH') setVisible(v => !v)
       if (e.code === 'KeyT') {
         useSpaceStore.setState({ showStarNames: !useSpaceStore.getState().showStarNames })
@@ -112,6 +115,12 @@ export default function ControlPanel() {
       {!isMobile && (
         <>
           <div className={styles.divider} />
+          <button
+            className={styles.addPlanetBtn}
+            onClick={() => setAddPostOpen(true)}
+          >
+            ✦ Add planet
+          </button>
           <p className={styles.hint}>
             <kbd className={styles.kbd}>H</kbd> hide panel
           </p>

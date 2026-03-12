@@ -16,6 +16,8 @@ import TrajectoryExitConfirm from '@/components/TrajectoryExitConfirm/Trajectory
 import SearchBar from '@/components/SearchBar/SearchBar'
 import BigBangLoader from '@/components/BigBangLoader/BigBangLoader'
 import MobileControls from '@/components/MobileControls/MobileControls'
+import AddPostDrawer from '@/components/AddPostDrawer/AddPostDrawer'
+import PlanetPreview from '@/components/PlanetPreview/PlanetPreview'
 import {
   StarRegistryContext,
   useCreateStarRegistry,
@@ -26,7 +28,7 @@ import styles from './SpaceScene.module.css'
 
 export default function SpaceScene() {
   const registry    = useCreateStarRegistry()
-  const { posts, loading, error } = usePosts()
+  const { posts, loading, error, refetch } = usePosts()
   const bigBangDone = useSpaceStore((s) => s.bigBangDone)
 
   // Show loader only while fetching — expansion plays visibly after
@@ -49,6 +51,7 @@ export default function SpaceScene() {
             <StarField count={6000} spread={900} opacity={0.55} size={0.5} />
             <BlogStars posts={posts} />
             {bigBangDone && <ConstellationLines posts={posts} />}
+            <PlanetPreview />
             <CameraController />
             <TrajectoryController />
             <Preload all />
@@ -62,6 +65,7 @@ export default function SpaceScene() {
         <PostCard />
         <PostOverlay />
         <TrajectoryExitConfirm />
+        <AddPostDrawer onCreated={refetch} />
         <BigBangLoader visible={loaderVisible} />
 
         {error && (

@@ -236,15 +236,18 @@
 /* ── Mobile ────────────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .wrapper {
-    top: var(--space-md);
+    top: var(--space-lg);
     left: var(--space-md);
-    right: var(--space-md);
+    /* HUD padding (24px) + hamburger width (42px) + gap (8px) */
+    right: calc(var(--space-lg) + 42px + var(--space-sm));
     transform: none;
     align-items: stretch;
   }
 
   .pill {
-    align-self: center;
+    align-self: stretch;
+    justify-content: center;
+    border-radius: var(--radius-sm);
   }
 
   .expanded {
